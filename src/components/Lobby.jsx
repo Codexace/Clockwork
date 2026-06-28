@@ -36,9 +36,12 @@ export default function Lobby({ game, code, playerId }) {
         <ul className="player-list">
           {players.map((p) => (
             <li key={p.id} className={p.ready ? 'ready' : ''}>
-              <span className="dot" />
+              <span className={`conn ${p.connected ? 'on' : 'off'}`} title={p.connected ? 'online' : 'offline'}>
+                {p.connected ? '●' : '○'}
+              </span>
               <span className="pname">
                 {p.name}{p.id === playerId ? ' (you)' : ''}{p.isHost ? ' · host' : ''}
+                {!p.connected && p.id !== playerId ? ' · offline' : ''}
               </span>
               <span className="pchar">
                 {p.characterId ? CHARACTER_NAME(p.characterId) : <em className="muted">choosing…</em>}

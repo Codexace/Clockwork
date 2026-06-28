@@ -229,6 +229,24 @@ label { display: block; margin: .6rem 0; color: var(--muted); font-size: .85rem;
 .gamelog ul { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow-y: auto; }
 .gamelog li { font-size: .78rem; padding: .25rem 0; border-bottom: 1px solid var(--line); color: var(--muted); }
 
+/* connection / presence */
+.conn { font-size: .7rem; line-height: 1; }
+.conn.on { color: var(--ok); }
+.conn.off { color: var(--muted); }
+.offline-flag { color: var(--accent); }
+
+/* rejoin */
+.rejoin-block { margin-top: .8rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+.seat-list { list-style: none; padding: 0; margin: .4rem 0; }
+.seat-list li {
+  display: grid; grid-template-columns: 16px 1fr auto; gap: .5rem; align-items: center;
+  padding: .35rem .4rem; border: 1px solid var(--line); border-radius: 4px; margin-bottom: .3rem;
+  background: var(--panel-2);
+}
+.seat-list li.offline { border-color: var(--accent); }
+.seat-main { display: flex; flex-direction: column; }
+.seat-name { font-weight: bold; }
+
 /* gameover */
 .win-loyal { color: var(--ok); }
 .win-sleeper { color: var(--danger); }

@@ -1,17 +1,27 @@
 import { useState } from 'react';
 import { getSavedName, saveName } from '../lib/identity.js';
-import { createGame, joinGame, gameExists } from '../lib/rtdb.js';
+import {
+  createGame,
+  joinGame,
+  gameExists,
+  fetchGame,
+  fetchPresence,
+} from '../lib/rtdb.js';
+import RejoinSeatList from './RejoinSeatList.jsx';
 
-// Entry screen: pick a game code + name, then create or join.
+// Entry screen: pick a game code + name, then create / join / rejoin.
 export default function JoinScreen({ playerId, onJoined }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState(getSavedName());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Rejoin lookup state: null = not looking up; otherwise { players, presence }.
+  const [lookup, setLookup] = useState(null);
 
   const cleanCode = code.trim().toUpperCase();
   const cleanName = name.trim();
-  const valid = cleanCode.length >= 3 && cleanName.length >= 1;
+  const codeOk = cleanCode.length >= 3;
+  const valid = codeOk && cleanName.length >= 1;
 
   async function handle(action) {
     setError('');
@@ -39,6 +49,30 @@ export default function JoinScreen({ playerId, onJoined }) {
     }
   }
 
+  async function lookupSeats() {
+    setError('');
+    if (!codeOk) {
+      setError('Enter a game code (3+ chars) first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const g = await fetchGame(cleanCode);
+      if (!g) throw new Error(`No game found with code "${cleanCode}".`);
+      const presence = await fetchPresence(cleanCode);
+      setLookup({ players: Object.values(g.players || {}), presence });
+    } catch (e) {
+      setError(e.message || 'Lookup failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function reclaim(seat) {
+    saveName(seat.name);
+    onJoined(cleanCode, seat.id);
+  }
+
   return (
     <div className="centered">
       <div className="card join">
@@ -49,7 +83,7 @@ export default function JoinScreen({ playerId, onJoined }) {
           Game code
           <input
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => { setCode(e.target.value); setLookup(null); }}
             placeholder="e.g. REDPHONE"
             maxLength={12}
             autoCapitalize="characters"
@@ -79,6 +113,24 @@ export default function JoinScreen({ playerId, onJoined }) {
             Join game
           </button>
         </div>
+
+        <div className="rejoin-block">
+          <button className="ghost block" disabled={!codeOk || busy} onClick={lookupSeats}>
+            Disconnected? Rejoin a seat
+          </button>
+          {lookup && (
+            <>
+              <p className="muted small">Pick your seat to reconnect:</p>
+              <RejoinSeatList
+                players={lookup.players}
+                presence={lookup.presence}
+                onReclaim={reclaim}
+                busy={busy}
+              />
+            </>
+          )}
+        </div>
+
         <p className="muted small">
           Everyone joining the same game enters the <em>same</em> code. One person
           creates; the rest join. Best played together on a video call.

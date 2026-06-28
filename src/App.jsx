@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { firebaseConfigured } from './firebase.js';
-import { getPlayerId } from './lib/identity.js';
+import { getPlayerId, setPlayerId as persistPlayerId } from './lib/identity.js';
 import { useGame } from './hooks/useGame.js';
+import { usePresence } from './hooks/usePresence.js';
 import JoinScreen from './components/JoinScreen.jsx';
 import Lobby from './components/Lobby.jsx';
 import PhrasePhase from './components/PhrasePhase.jsx';
 import DecodePhase from './components/DecodePhase.jsx';
 import GameOver from './components/GameOver.jsx';
 import ConfigNotice from './components/ConfigNotice.jsx';
+import RejoinScreen from './components/RejoinScreen.jsx';
 
 const CODE_KEY = 'clockwork-code';
 
 export default function App() {
-  const playerId = getPlayerId();
+  const [playerId, setPlayerId] = useState(getPlayerId);
   const [code, setCode] = useState(() => localStorage.getItem(CODE_KEY) || '');
   const { game, loading } = useGame(code);
+
+  const inGame = !!game?.players?.[playerId];
+  const presence = usePresence(code, playerId, inGame);
+
+  // Merge live presence into the game so every component can read p.connected.
+  const decoratedGame = useMemo(() => {
+    if (!game) return game;
+    const players = {};
+    for (const [id, p] of Object.entries(game.players || {})) {
+      players[id] = { ...p, connected: presence[id] === true };
+    }
+    return { ...game, players };
+  }, [game, presence]);
 
   useEffect(() => {
     if (code) localStorage.setItem(CODE_KEY, code);
@@ -25,12 +40,21 @@ export default function App() {
     setCode('');
   }
 
+  // Enter a game; optionally adopting a reclaimed seat's id.
+  function joined(nextCode, reclaimedId) {
+    if (reclaimedId) {
+      persistPlayerId(reclaimedId);
+      setPlayerId(reclaimedId);
+    }
+    setCode(nextCode);
+  }
+
   if (!firebaseConfigured) {
     return <ConfigNotice />;
   }
 
   if (!code) {
-    return <JoinScreen playerId={playerId} onJoined={setCode} />;
+    return <JoinScreen playerId={playerId} onJoined={joined} />;
   }
 
   if (loading) {
@@ -46,31 +70,34 @@ export default function App() {
     );
   }
 
-  const inGame = !!game.players?.[playerId];
-  if (!inGame && game.phase !== 'lobby') {
+  // Have a code but no seat (new device / cleared storage / mid-game): rejoin.
+  if (!inGame) {
     return (
-      <Centered>
-        <p>Game <strong>{code}</strong> is already in progress and you're not in it.</p>
-        <button onClick={leave}>Back</button>
-      </Centered>
+      <RejoinScreen
+        code={code}
+        game={decoratedGame}
+        presence={presence}
+        onReclaim={(seat) => { joined(code, seat.id); }}
+        onBack={leave}
+      />
     );
   }
 
   return (
     <div className="app">
-      <TopBar game={game} code={code} playerId={playerId} onLeave={leave} />
+      <TopBar game={decoratedGame} code={code} playerId={playerId} onLeave={leave} />
       <main className="content">
         {game.phase === 'lobby' && (
-          <Lobby game={game} code={code} playerId={playerId} />
+          <Lobby game={decoratedGame} code={code} playerId={playerId} />
         )}
         {game.phase === 'phrase' && (
-          <PhrasePhase game={game} code={code} playerId={playerId} />
+          <PhrasePhase game={decoratedGame} code={code} playerId={playerId} />
         )}
         {game.phase === 'decode' && (
-          <DecodePhase game={game} code={code} playerId={playerId} />
+          <DecodePhase game={decoratedGame} code={code} playerId={playerId} />
         )}
         {game.phase === 'gameover' && (
-          <GameOver game={game} code={code} playerId={playerId} />
+          <GameOver game={decoratedGame} code={code} playerId={playerId} />
         )}
       </main>
     </div>

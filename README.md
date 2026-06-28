@@ -37,6 +37,21 @@ Each player's **hand** and **Identity Card** are private (only rendered for that
 player). Everything else — dossiers, activation phrases, the decode pile, the
 tracker, and the event log — is shared.
 
+### Reconnecting after a disconnect
+
+- **Connection status** is shown next to every player (● online / ○ offline) in
+  the lobby and on the player boards, so the table can see who dropped. It uses
+  Firebase `onDisconnect`, published at a separate `presence/{code}` node.
+- **Same browser** (refresh, closed tab, brief network drop): you rejoin
+  automatically — your seat is remembered in `localStorage` and the connection
+  resumes.
+- **New device / cleared storage / mid-game:** open the app, enter the game code,
+  and click **"Disconnected? Rejoin a seat"** (or, if you still have the code,
+  the app shows the seat picker directly). Choose your seat to reconnect with
+  your original hand and Identity Card. Only **offline** seats can be reclaimed,
+  so an actively-connected player can't be bumped — if your seat still shows
+  online, wait a few seconds for the disconnect to register.
+
 ---
 
 ## Run it locally
@@ -72,6 +87,12 @@ the `games` tree:
 {
   "rules": {
     "games": {
+      "$code": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "presence": {
       "$code": {
         ".read": true,
         ".write": true

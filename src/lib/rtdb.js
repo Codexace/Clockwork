@@ -9,6 +9,8 @@ import {
   onValue,
   runTransaction,
   get,
+  set,
+  onDisconnect,
 } from 'firebase/database';
 import { db } from '../firebase.js';
 import {
@@ -120,6 +122,48 @@ export function subscribeGame(code, cb) {
 export async function gameExists(code) {
   const snap = await get(gameRef(code));
   return snap.exists();
+}
+
+// One-off fetch of a game's current state (used by the rejoin seat lookup).
+export async function fetchGame(code) {
+  const snap = await get(gameRef(code));
+  return snap.val();
+}
+
+// =============================================================================
+// Presence (connection status) — stored at presence/{code}/{pid} as a boolean.
+// Kept OUTSIDE the transactional /games node so game transactions never clobber
+// it. The UI merges it back in for display (see usePresence / App).
+// =============================================================================
+const presenceRef = (code, pid) => ref(db, `presence/${code}/${pid}`);
+
+export function subscribePresence(code, cb) {
+  return onValue(ref(db, `presence/${code}`), (snap) => cb(snap.val() || {}));
+}
+
+export async function fetchPresence(code) {
+  const snap = await get(ref(db, `presence/${code}`));
+  return snap.val() || {};
+}
+
+// Bind this client's presence: mark online now, and register an onDisconnect
+// hook so Firebase flips us offline if the connection drops. Returns a cleanup
+// that marks us offline and cancels the hook (for a clean leave/unmount).
+export function bindPresence(code, pid) {
+  const connectedRef = ref(db, '.info/connected');
+  const myRef = presenceRef(code, pid);
+  const unsub = onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      // Order matters: arm onDisconnect first, then announce we're online.
+      onDisconnect(myRef).set(false);
+      set(myRef, true);
+    }
+  });
+  return () => {
+    unsub();
+    onDisconnect(myRef).cancel().catch(() => {});
+    set(myRef, false).catch(() => {});
+  };
 }
 
 // =============================================================================

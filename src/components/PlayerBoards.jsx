@@ -23,11 +23,17 @@ export default function PlayerBoards({ game, playerId, highlightPhraseId, curren
           >
             <div className="board-head">
               <span className="bname">
+                <span className={`conn ${p.connected ? 'on' : 'off'}`} title={p.connected ? 'online' : 'offline'}>
+                  {p.connected ? '●' : '○'}
+                </span>{' '}
                 {p.name}{p.id === playerId ? ' (you)' : ''}
                 {p.id === currentLeaderId ? ' 👑' : ''}
               </span>
               <span className="bhand muted small">{handCount} cards</span>
             </div>
+            {!p.connected && p.id !== playerId && (
+              <div className="offline-flag small">⚠ disconnected — may rejoin</div>
+            )}
             <div className="bchar muted small">
               {ch ? `${ch.name} · ${ch.categories.join(' + ')}` : '—'}
             </div>
