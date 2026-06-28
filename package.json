@@ -1,0 +1,21 @@
+{
+  "name": "clockwork",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "description": "Browser-based multiplayer playtest prototype of the board game Clockwork (Cold War codebreaking with hidden traitors).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "firebase": "^11.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  }
+}
